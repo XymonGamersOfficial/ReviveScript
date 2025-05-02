@@ -1,1 +1,167 @@
-\108\111\99\97\108\32\112\108\97\121\101\114\32\61\32\103\97\109\101\46\80\108\97\121\101\114\115\46\76\111\99\97\108\80\108
+local player = game.Players.LocalPlayer
+local deathPosition = nil
+local animator
+
+-- Configuration
+local config = {
+    noStun = true -- Set to true or false based on your requirement
+}
+
+-- Load the animation
+local animation = Instance.new("Animation")
+animation.AnimationId = "rbxassetid://18435303746" -- Updated animation ID
+
+-- Load the sound
+local soundId = "rbxassetid://73546498875592" -- Replace with your sound ID
+local sound = Instance.new("Sound")
+sound.SoundId = soundId
+sound.Volume = 1 -- Set the volume (0 to 1)
+
+-- Function to send a notification
+local function sendNotification(title, text)
+    local notification = Instance.new("ScreenGui")
+    local frame = Instance.new("Frame")
+    local titleLabel = Instance.new("TextLabel")
+    local textLabel = Instance.new("TextLabel")
+
+    notification.Name = "Notification"
+    notification.Parent = player:WaitForChild("PlayerGui")
+
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BackgroundTransparency = 0.5
+    frame.Size = UDim2.new(0.3, 0, 0.1, 0)
+    frame.Position = UDim2.new(0.35, 0, 0.45, 0)
+    frame.Parent = notification
+
+    titleLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Parent = frame
+
+    textLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    textLabel.Text = text
+    textLabel.TextColor3 = Color3.new(1, 1, 1)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    textLabel.Parent = frame
+
+    wait(3) -- Show notification for 3 seconds
+    notification:Destroy()
+end
+
+-- Function to show death messages
+local function showDeathMessages()
+    local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+
+    -- First text label
+    local firstTextLabel = Instance.new("TextLabel")
+    firstTextLabel.Size = UDim2.new(0.3, 0, 0.1, 0) -- Same size as title label
+    firstTextLabel.Position = UDim2.new(0.35, 0, 0.35, 0) -- Center position
+    firstTextLabel.Text = "You died"
+    firstTextLabel.TextColor3 = Color3.new(1, 1, 1) -- White text color
+    firstTextLabel.BackgroundTransparency = 1 -- Fully transparent background
+    firstTextLabel.TextScaled = true
+    firstTextLabel.TextWrapped = true
+    firstTextLabel.Font = Enum.Font.SourceSans -- Game font
+    firstTextLabel.TextAlignment = Enum.TextAlignment.Center -- Center text horizontally
+    firstTextLabel.Parent = screenGui
+
+    wait(2) -- Show first message for 2 seconds
+
+    firstTextLabel:Destroy() -- Remove the first text label
+
+    -- Second text label
+    local secondTextLabel = Instance.new("TextLabel")
+    secondTextLabel.Size = UDim2.new(0.3, 0, 0.1, 0) -- Same size as title label
+    secondTextLabel.Position = UDim2.new(0.35, 0, 0.55, 0) -- Adjusted position for spacing
+    secondTextLabel.Text = "But you refused to."
+    secondTextLabel.TextColor3 = Color3.new(1, 1, 1) -- White text color
+    secondTextLabel.BackgroundTransparency = 1 -- Fully transparent background
+    secondTextLabel.TextScaled = true
+    secondTextLabel.TextWrapped = true
+    secondTextLabel.Font = Enum.Font.SourceSans -- Game font
+    secondTextLabel.TextAlignment = Enum.TextAlignment.Center -- Center text horizontally
+    secondTextLabel.Parent = screenGui
+
+    wait(2) -- Show second message for 2 seconds
+
+    secondTextLabel:Destroy() -- Remove the second text label
+    screenGui:Destroy() -- Remove the ScreenGui
+end
+
+-- Function to handle player death
+local function onDeath()
+    if player.Character then
+        deathPosition = player.Character:FindFirstChild("HumanoidRootPart").Position
+        showDeathMessages() -- Show death messages when the player dies
+    end
+end
+
+-- Function to handle player respawn
+local function onRespawn()
+    if deathPosition and player.Character then
+        wait(0) -- Delay for 0 seconds before respawning
+
+        -- Teleport to the death position
+        player.Character:MoveTo(deathPosition)
+
+        -- Play the animation
+        local humanoid = player.Character:WaitForChild("Humanoid")
+        animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+        local animationTrack = animator:LoadAnimation(animation)
+
+        -- Play the animation in reverse
+        animationTrack:Play()
+        animationTrack:AdjustSpeed(1) -- Set speed for play
+
+        -- Play the sound
+        sound.Parent = player.Character:WaitForChild("HumanoidRootPart") -- Set the sound's parent to the HumanoidRootPart
+        sound:Play()
+
+        -- Set health and speed
+        humanoid.Health = 40
+        
+        if config.noStun then
+            humanoid.WalkSpeed = 25
+            maintainSpeed(humanoid) -- Activate maintainSpeed function
+        end
+
+        -- Clear the death position
+        deathPosition = nil
+
+        -- Send chat message
+        local chatService = game:GetService("Chat")
+        chatService:Chat(player.Character.Head, "I REFUSE TO DIE", Enum.ChatColor.Red)
+    end
+end
+
+-- Function to ensure speed is always 25
+local function maintainSpeed(humanoid)
+    humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if humanoid.WalkSpeed ~= 25 then
+            humanoid.WalkSpeed = 25
+        end
+    end)
+end
+
+-- Function to initialize the character
+local function initializeCharacter(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    humanoid.Died:Connect(onDeath)
+    if config.noStun then
+        maintainSpeed(humanoid) -- Ensure speed is maintained if noStun is true
+    end
+    onRespawn() -- Call onRespawn when the character is initialized
+end
+
+-- Connect events
+player.CharacterAdded:Connect(initializeCharacter)
+
+-- Initialize the script for the first time
+if player.Character then
+    initializeCharacter(player.Character)
+end
+
+-- Send notification that the script has executed
+sendNotification("Revive Script by Xymon Gamers", "Revive script is now running!")
